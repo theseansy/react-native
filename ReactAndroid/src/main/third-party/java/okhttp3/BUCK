@@ -6,8 +6,8 @@ prebuilt_jar(
 
 remote_file(
     name = 'okhttp-binary-jar',
-    url = 'mvn:com.squareup.okhttp:okhttp:jar:2.5.0',
-    sha1 = '4de2b4ed3445c37ec1720a7d214712e845a24636'
+    url = 'mvn:com.squareup.okhttp3:okhttp:jar:3.1.2',
+    sha1 = '7052283359001bb108753cb0583a887d3bf94c82'
 )
 
 prebuilt_jar(
@@ -18,6 +18,6 @@ prebuilt_jar(
 
 remote_file(
     name = 'okhttp-ws-binary-jar',
-    url = 'mvn:com.squareup.okhttp:okhttp-ws:jar:2.5.0',
-    sha1 = '0e9753b7dcae5deca92e871c5c759067070b07bc',
+    url = 'mvn:com.squareup.okhttp3:okhttp-ws:jar:3.1.2',
+    sha1 = 'b358df9c81f84287ae3859dad5457fc2fa494b9b',
 )

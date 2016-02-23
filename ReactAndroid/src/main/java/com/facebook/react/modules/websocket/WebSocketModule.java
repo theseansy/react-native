@@ -9,9 +9,6 @@
 
 package com.facebook.react.modules.websocket;
 
-import java.io.IOException;
-import javax.annotation.Nullable;
-
 import com.facebook.common.logging.FLog;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -20,25 +17,27 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.common.ReactConstants;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.Response;
-import com.squareup.okhttp.ws.WebSocket;
-import com.squareup.okhttp.ws.WebSocketCall;
-import com.squareup.okhttp.ws.WebSocketListener;
-
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import javax.annotation.Nullable;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
+import okhttp3.ws.WebSocket;
+import okhttp3.ws.WebSocketCall;
+import okhttp3.ws.WebSocketListener;
 import okio.Buffer;
-import okio.BufferedSource;
 
 public class WebSocketModule extends ReactContextBaseJavaModule {
 
@@ -64,12 +63,11 @@ public class WebSocketModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void connect(final String url, @Nullable final ReadableArray protocols, @Nullable final ReadableMap options, final int id) {
     // ignoring protocols, since OKHttp overrides them.
-    OkHttpClient client = new OkHttpClient();
-
-    client.setConnectTimeout(10, TimeUnit.SECONDS);
-    client.setWriteTimeout(10, TimeUnit.SECONDS);
-    // Disable timeouts for read
-    client.setReadTimeout(0, TimeUnit.MINUTES);
+    OkHttpClient client = new OkHttpClient.Builder()
+      .connectTimeout(10, TimeUnit.SECONDS)
+      .writeTimeout(10, TimeUnit.SECONDS)
+      .readTimeout(0, TimeUnit.MINUTES) // Disable timeouts for read
+      .build();
 
     Request.Builder builder = new Request.Builder()
         .tag(id)
@@ -114,16 +112,16 @@ public class WebSocketModule extends ReactContextBaseJavaModule {
       }
 
       @Override
-      public void onMessage(BufferedSource bufferedSource, WebSocket.PayloadType payloadType) {
+      public void onMessage(ResponseBody response) throws IOException {
         String message;
         try {
-          message = bufferedSource.readUtf8();
+          message = response.source().readUtf8();
         } catch (IOException e) {
           notifyWebSocketFailed(id, e.getMessage());
           return;
         }
         try {
-          bufferedSource.close();
+          response.source().close();
         } catch (IOException e) {
           FLog.e(
             ReactConstants.TAG,
@@ -139,7 +137,7 @@ public class WebSocketModule extends ReactContextBaseJavaModule {
     });
 
     // Trigger shutdown of the dispatcher's executor so this process can exit cleanly
-    client.getDispatcher().getExecutorService().shutdown();
+    client.dispatcher().executorService().shutdown();
   }
 
   @ReactMethod
@@ -173,9 +171,7 @@ public class WebSocketModule extends ReactContextBaseJavaModule {
       throw new RuntimeException("Cannot send a message. Unknown WebSocket id " + id);
     }
     try {
-      client.sendMessage(
-        WebSocket.PayloadType.TEXT,
-        new Buffer().writeUtf8(message));
+      client.sendMessage(RequestBody.create(WebSocket.TEXT, message));
     } catch (IOException e) {
       notifyWebSocketFailed(id, e.getMessage());
     }

@@ -28,7 +28,6 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.modules.common.ModuleDataCleaner;
 import com.facebook.react.modules.network.OkHttpClientProvider;
 import com.facebook.soloader.SoLoader;
-
 import com.squareup.okhttp.OkHttpClient;
 
 /**
@@ -98,7 +97,10 @@ public class FrescoModule extends ReactContextBaseJavaModule implements
       requestListeners.add(listener);
     }
 
-    OkHttpClient okHttpClient = OkHttpClientProvider.getOkHttpClient();
+    // TODO: update when https://github.com/facebook/fresco/pull/875 has been merged
+    // OkHttpClient okHttpClient = OkHttpClientProvider.getOkHttpClient();
+     OkHttpClient okHttpClient = new OkHttpClient();
+
     ImagePipelineConfig.Builder builder =
         OkHttpImagePipelineConfigFactory.newBuilder(context.getApplicationContext(), okHttpClient);
 

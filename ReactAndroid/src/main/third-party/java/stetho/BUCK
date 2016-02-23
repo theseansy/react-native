@@ -6,18 +6,18 @@ prebuilt_jar(
 
 remote_file(
     name = 'stetho-binary-jar',
-    url = 'mvn:com.facebook.stetho:stetho:jar:1.2.0',
-    sha1 = '1d6cdb8ce8185b8b23213fad48a83987fb6d2d67',
+    url = 'mvn:com.facebook.stetho:stetho:jar:1.3.0',
+    sha1 = '87e6bfd8d961a57cf8cbecebcbd68489d41bd4fc',
 )
 
 prebuilt_jar(
-    name = 'stetho-okhttp',
-    binary_jar = ':stetho-okhttp-binary-jar',
+    name = 'stetho-okhttp3',
+    binary_jar = ':stetho-okhttp3-binary-jar',
     visibility = ['//ReactAndroid/...',],
 )
 
 remote_file(
-    name = 'stetho-okhttp-binary-jar',
-    url = 'mvn:com.facebook.stetho:stetho-okhttp:jar:1.2.0',
-    sha1 = '6c5c9380e245c4ff5be2b2a49dcbb0200c39798e',
+    name = 'stetho-okhttp3-binary-jar',
+    url = 'mvn:com.facebook.stetho:stetho-okhttp3:jar:1.3.0',
+    sha1 = 'a4a4b2770ad38d26c7ffe10c989e555e635669e5',
 )

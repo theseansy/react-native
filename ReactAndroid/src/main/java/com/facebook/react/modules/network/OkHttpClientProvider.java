@@ -13,7 +13,7 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.TimeUnit;
 
-import com.squareup.okhttp.OkHttpClient;
+import okhttp3.OkHttpClient;
 
 /**
  * Helper class that provides the same OkHttpClient instance that will be used for all networking
@@ -33,12 +33,11 @@ public class OkHttpClientProvider {
 
   private static OkHttpClient createClient() {
     // TODO: #7108751 plug in stetho
-    OkHttpClient client = new OkHttpClient();
-
-    // No timeouts by default
-    client.setConnectTimeout(0, TimeUnit.MILLISECONDS);
-    client.setReadTimeout(0, TimeUnit.MILLISECONDS);
-    client.setWriteTimeout(0, TimeUnit.MILLISECONDS);
+    OkHttpClient client = new OkHttpClient.Builder()
+      .connectTimeout(0, TimeUnit.MILLISECONDS)
+      .readTimeout(0, TimeUnit.MILLISECONDS)
+      .writeTimeout(0, TimeUnit.MILLISECONDS)
+      .build();
 
     return client;
   }

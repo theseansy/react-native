@@ -23,11 +23,10 @@ import android.net.Uri;
 import com.facebook.common.logging.FLog;
 import com.facebook.react.common.ReactConstants;
 
-import com.squareup.okhttp.MediaType;
-import com.squareup.okhttp.RequestBody;
-import com.squareup.okhttp.internal.Util;
+import okhttp3.MediaType;
+import okhttp3.RequestBody;
+import okhttp3.internal.Util;
 import okio.BufferedSink;
-import okio.ByteString;
 import okio.Okio;
 import okio.Source;
 
@@ -119,7 +118,7 @@ import okio.Source;
    */
   public static RequestBody getEmptyBody(String method) {
     if (method.equals("POST") || method.equals("PUT") || method.equals("PATCH")) {
-      return RequestBody.create(null, ByteString.EMPTY);
+      return RequestBody.create(null, new byte[0]);
     } else {
       return null;
     }

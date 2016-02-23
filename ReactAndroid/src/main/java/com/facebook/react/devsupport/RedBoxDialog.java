@@ -30,11 +30,13 @@ import com.facebook.react.common.MapBuilder;
 import com.facebook.react.common.ReactConstants;
 import com.facebook.react.devsupport.StackTraceHelper.StackFrame;
 
-import com.squareup.okhttp.MediaType;
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.RequestBody;
+
 import org.json.JSONObject;
+
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
 
 /**
  * Dialog for displaying JS errors in an eye-catching form (red box).

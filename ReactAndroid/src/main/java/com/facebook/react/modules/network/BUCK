@@ -11,10 +11,10 @@ android_library(
     react_native_dep('third-party/android/support/v4:lib-support-v4'),
     react_native_dep('third-party/java/infer-annotations:infer-annotations'),
     react_native_dep('third-party/java/jsr-305:jsr-305'),
-    react_native_dep('third-party/java/okhttp:okhttp'),
+    react_native_dep('third-party/java/okhttp3:okhttp'),
     react_native_dep('third-party/java/okio:okio'),
     react_native_dep('third-party/java/stetho:stetho'),
-    react_native_dep('third-party/java/stetho:stetho-okhttp'),
+    react_native_dep('third-party/java/stetho:stetho-okhttp3'),
   ],
   visibility = [
     'PUBLIC',
