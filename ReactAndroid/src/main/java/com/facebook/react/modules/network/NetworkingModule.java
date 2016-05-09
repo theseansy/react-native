@@ -30,19 +30,19 @@ import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.common.OkHttpCallUtil;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 
-import com.squareup.okhttp.Callback;
-import com.squareup.okhttp.Headers;
-import com.squareup.okhttp.MediaType;
-import com.squareup.okhttp.MultipartBuilder;
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.RequestBody;
-import com.squareup.okhttp.Response;
-import com.squareup.okhttp.ResponseBody;
-
-import static java.lang.Math.min;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Headers;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 /**
  * Implements the XMLHttpRequest JavaScript interface.
@@ -126,7 +126,7 @@ public final class NetworkingModule extends ReactContextBaseJavaModule {
 
   @Override
   public void initialize() {
-    mClient.setCookieHandler(mCookieHandler);
+    // mClient.setCookieHandler(mCookieHandler); // TODO
   }
 
   @Override
@@ -137,10 +137,10 @@ public final class NetworkingModule extends ReactContextBaseJavaModule {
   @Override
   public void onCatalystInstanceDestroy() {
     mShuttingDown = true;
-    mClient.cancel(null);
+    OkHttpCallUtil.cancelTag(mClient, null);
 
     mCookieHandler.destroy();
-    mClient.setCookieHandler(null);
+    // mClient.setCookieHandler(null); // TODO
   }
 
   @ReactMethod
@@ -167,9 +167,10 @@ public final class NetworkingModule extends ReactContextBaseJavaModule {
     // client and set the timeout explicitly on the clone.  This is cheap as everything else is
     // shared under the hood.
     // See https://github.com/square/okhttp/wiki/Recipes#per-call-configuration for more information
-    if (timeout != mClient.getConnectTimeout()) {
-      client = mClient.clone();
-      client.setReadTimeout(timeout, TimeUnit.MILLISECONDS);
+    if (timeout != mClient.connectTimeoutMillis()) {
+           client = mClient.newBuilder()
+           .readTimeout(timeout, TimeUnit.MILLISECONDS)
+           .build();
     }
 
     Headers requestHeaders = extractHeaders(headers, data);
@@ -228,7 +229,7 @@ public final class NetworkingModule extends ReactContextBaseJavaModule {
         contentType = "multipart/form-data";
       }
       ReadableArray parts = data.getArray(REQUEST_BODY_KEY_FORMDATA);
-      MultipartBuilder multipartBuilder =
+      MultipartBody.Builder multipartBuilder =
           constructMultipartBody(executorToken, parts, contentType, requestId);
       if (multipartBuilder == null) {
         return;
@@ -242,7 +243,7 @@ public final class NetworkingModule extends ReactContextBaseJavaModule {
     client.newCall(requestBuilder.build()).enqueue(
         new Callback() {
           @Override
-          public void onFailure(Request request, IOException e) {
+          public void onFailure(Call call, IOException e) {
             if (mShuttingDown) {
               return;
             }
@@ -250,7 +251,7 @@ public final class NetworkingModule extends ReactContextBaseJavaModule {
           }
 
           @Override
-          public void onResponse(Response response) throws IOException {
+          public void onResponse(Call call, Response response) throws IOException {
             if (mShuttingDown) {
               return;
             }
@@ -328,7 +329,7 @@ public final class NetworkingModule extends ReactContextBaseJavaModule {
     args.pushInt(requestId);
     args.pushInt(response.code());
     args.pushMap(headers);
-    args.pushString(response.request().urlString());
+    args.pushString(response.request().url().toString());
 
     getEventEmitter(ExecutorToken).emit("didReceiveNetworkResponse", args);
   }
@@ -356,7 +357,7 @@ public final class NetworkingModule extends ReactContextBaseJavaModule {
     new GuardedAsyncTask<Void, Void>(getReactApplicationContext()) {
       @Override
       protected void doInBackgroundGuarded(Void... params) {
-        mClient.cancel(requestId);
+        OkHttpCallUtil.cancelTag(mClient, requestId);
       }
     }.execute();
   }
@@ -373,15 +374,13 @@ public final class NetworkingModule extends ReactContextBaseJavaModule {
     return true;
   }
 
-  private
-  @Nullable
-  MultipartBuilder constructMultipartBody(
+  private @Nullable MultipartBody.Builder constructMultipartBody(
       ExecutorToken ExecutorToken,
       ReadableArray body,
       String contentType,
       int requestId) {
-    MultipartBuilder multipartBuilder = new MultipartBuilder();
-    multipartBuilder.type(MediaType.parse(contentType));
+    MultipartBody.Builder multipartBuilder = new MultipartBody.Builder();
+    multipartBuilder.setType(MediaType.parse(contentType));
 
     for (int i = 0, size = body.size(); i < size; i++) {
       ReadableMap bodyPart = body.getMap(i);
@@ -440,9 +439,7 @@ public final class NetworkingModule extends ReactContextBaseJavaModule {
   /**
    * Extracts the headers from the Array. If the format is invalid, this method will return null.
    */
-  private
-  @Nullable
-  Headers extractHeaders(
+  private @Nullable Headers extractHeaders(
       @Nullable ReadableArray headersArray,
       @Nullable ReadableMap requestData) {
     if (headersArray == null) {
