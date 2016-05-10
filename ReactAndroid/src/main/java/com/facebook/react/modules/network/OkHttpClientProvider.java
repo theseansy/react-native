@@ -37,6 +37,7 @@ public class OkHttpClientProvider {
       .connectTimeout(0, TimeUnit.MILLISECONDS)
       .readTimeout(0, TimeUnit.MILLISECONDS)
       .writeTimeout(0, TimeUnit.MILLISECONDS)
+      .cookieJar(new ReactCookieJarContainer())
       .build();
   }
 }

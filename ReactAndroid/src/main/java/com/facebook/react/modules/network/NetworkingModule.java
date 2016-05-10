@@ -36,6 +36,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Headers;
+import okhttp3.JavaNetCookieJar;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
@@ -61,6 +62,7 @@ public final class NetworkingModule extends ReactContextBaseJavaModule {
   private final OkHttpClient mClient;
   private final ForwardingCookieHandler mCookieHandler;
   private final @Nullable String mDefaultUserAgent;
+  private final CookieJarContainer mCookieJarContainer;
   private boolean mShuttingDown;
 
   /* package */ NetworkingModule(
@@ -76,6 +78,7 @@ public final class NetworkingModule extends ReactContextBaseJavaModule {
       }
     }
     mCookieHandler = new ForwardingCookieHandler(reactContext);
+    mCookieJarContainer = (CookieJarContainer) mClient.cookieJar();
     mShuttingDown = false;
     mDefaultUserAgent = defaultUserAgent;
   }
@@ -126,7 +129,7 @@ public final class NetworkingModule extends ReactContextBaseJavaModule {
 
   @Override
   public void initialize() {
-    // mClient.setCookieHandler(mCookieHandler); // TODO
+    mCookieJarContainer.setCookieJar(new JavaNetCookieJar(mCookieHandler));
   }
 
   @Override
@@ -140,7 +143,7 @@ public final class NetworkingModule extends ReactContextBaseJavaModule {
     OkHttpCallUtil.cancelTag(mClient, null);
 
     mCookieHandler.destroy();
-    // mClient.setCookieHandler(null); // TODO
+    mCookieJarContainer.removeCookieJar();
   }
 
   @ReactMethod
