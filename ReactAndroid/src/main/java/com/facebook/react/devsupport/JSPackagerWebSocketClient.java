@@ -8,11 +8,6 @@
 
 package com.facebook.react.devsupport;
 
-import javax.annotation.Nullable;
-
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
-
 import android.os.Handler;
 import android.os.Looper;
 import android.util.JsonReader;
@@ -20,19 +15,23 @@ import android.util.JsonToken;
 
 import com.facebook.common.logging.FLog;
 
+import java.io.IOException;
+import java.io.StringReader;
+import java.util.concurrent.TimeUnit;
+
+import javax.annotation.Nullable;
+
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import okhttp3.ResponseBody;
-import okhttp3.ws.WebSocket;
-import okhttp3.ws.WebSocketCall;
-import okhttp3.ws.WebSocketListener;
-import okio.Buffer;
+import okhttp3.WebSocket;
+import okhttp3.WebSocketListener;
+import okio.ByteString;
 
 /**
  * A wrapper around WebSocketClient that recognizes packager's message format.
  */
-public class JSPackagerWebSocketClient implements WebSocketListener {
+public class JSPackagerWebSocketClient extends WebSocketListener {
   private static final String TAG = "JSPackagerWebSocketClient";
 
   private static final int RECONNECT_DELAY_MS = 2000;
@@ -60,15 +59,14 @@ public class JSPackagerWebSocketClient implements WebSocketListener {
     if (mClosed) {
       throw new IllegalStateException("Can't connect closed client");
     }
-    OkHttpClient  httpClient = new OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .writeTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MINUTES) // Disable timeouts for read
-        .build();
+    OkHttpClient httpClient = new OkHttpClient.Builder()
+      .connectTimeout(10, TimeUnit.SECONDS)
+      .writeTimeout(10, TimeUnit.SECONDS)
+      .readTimeout(0, TimeUnit.MINUTES) // Disable timeouts for read
+      .build();
 
     Request request = new Request.Builder().url(mUrl).build();
-    WebSocketCall call = WebSocketCall.create(httpClient, request);
-    call.enqueue(this);
+    httpClient.newWebSocket(request, this);
   }
 
   private void reconnect() {
@@ -99,11 +97,7 @@ public class JSPackagerWebSocketClient implements WebSocketListener {
 
   private void closeWebSocketQuietly() {
     if (mWebSocket != null) {
-      try {
-        mWebSocket.close(1000, "End of session");
-      } catch (IOException e) {
-        // swallow, no need to handle it here
-      }
+      mWebSocket.close(1000, "End of session");
       mWebSocket = null;
     }
   }
@@ -115,14 +109,9 @@ public class JSPackagerWebSocketClient implements WebSocketListener {
   }
 
   @Override
-  public void onMessage(ResponseBody response) throws IOException {
-    if (response.contentType() != WebSocket.TEXT) {
-      FLog.w(TAG, "Websocket received unexpected message with payload of type " + response.contentType());
-      return;
-    }
-
+  public void onMessage(WebSocket webSocket, String text) {
     try {
-      JsonReader reader = new JsonReader(response.charStream());
+      JsonReader reader = new JsonReader(new StringReader(text));
 
       Integer version = null;
       String target = null;
@@ -155,15 +144,18 @@ public class JSPackagerWebSocketClient implements WebSocketListener {
       triggerMessageCallback(target, action);
     } catch (IOException e) {
       abort("Parsing response message from websocket failed", e);
-    } finally {
-      response.close();
     }
   }
 
   @Override
-  public void onFailure(IOException e, Response response) {
-    if (mWebSocket != null) {
-      abort("Websocket exception", e);
+  public void onMessage(WebSocket webSocket, ByteString bytes) {
+    FLog.w(TAG, "Websocket received unexpected message with payload of type ByteString");
+  }
+
+  @Override
+  public void onFailure(WebSocket webSocket, Throwable t, Response response) {
+    if (webSocket != null) {
+      abort("Websocket exception", t);
     }
     if (!mClosed) {
       reconnect();
@@ -177,16 +169,11 @@ public class JSPackagerWebSocketClient implements WebSocketListener {
   }
 
   @Override
-  public void onClose(int code, String reason) {
+  public void onClosed(WebSocket webSocket, int code, String reason) {
     mWebSocket = null;
     if (!mClosed) {
       reconnect();
     }
-  }
-
-  @Override
-  public void onPong(Buffer payload) {
-    // ignore
   }
 
   private void abort(String message, Throwable cause) {
