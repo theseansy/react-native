@@ -2,7 +2,15 @@
 
 package com.facebook.react.devsupport;
 
-import javax.annotation.Nullable;
+import android.os.Handler;
+import android.os.Looper;
+
+import com.facebook.common.logging.FLog;
+import com.facebook.react.bridge.Inspector;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -10,24 +18,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import android.os.Handler;
-import android.os.Looper;
-
-import com.facebook.common.logging.FLog;
-import com.facebook.react.bridge.Inspector;
+import javax.annotation.Nullable;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
-import okhttp3.ResponseBody;
-import okhttp3.ws.WebSocket;
-import okhttp3.ws.WebSocketCall;
-import okhttp3.ws.WebSocketListener;
-import okio.Buffer;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+import okhttp3.WebSocket;
+import okhttp3.WebSocketListener;
 
 public class InspectorPackagerConnection {
   private static final String TAG = "InspectorPackagerConnection";
@@ -58,7 +55,7 @@ public class InspectorPackagerConnection {
   }
 
   void handleProxyMessage(JSONObject message)
-      throws JSONException, IOException {
+    throws JSONException, IOException {
     String event = message.getString("event");
     switch (event) {
       case "getPages":
@@ -161,7 +158,7 @@ public class InspectorPackagerConnection {
   }
 
   private void sendEvent(String name, Object payload)
-      throws JSONException, IOException {
+    throws JSONException, IOException {
     JSONObject jsonMessage = new JSONObject();
     jsonMessage.put("event", name);
     jsonMessage.put("payload", payload);
@@ -174,7 +171,7 @@ public class InspectorPackagerConnection {
     return payload;
   }
 
-  private class Connection implements WebSocketListener {
+  private class Connection extends WebSocketListener {
     private static final int RECONNECT_DELAY_MS = 2000;
 
     private final String mUrl;
@@ -195,9 +192,9 @@ public class InspectorPackagerConnection {
     }
 
     @Override
-    public void onFailure(IOException e, Response response) {
+    public void onFailure(WebSocket webSocket, Throwable t, Response response) {
       if (mWebSocket != null) {
-        abort("Websocket exception", e);
+        abort("Websocket exception", t);
       }
       if (!mClosed) {
         reconnect();
@@ -205,22 +202,16 @@ public class InspectorPackagerConnection {
     }
 
     @Override
-    public void onMessage(ResponseBody message) throws IOException {
+    public void onMessage(WebSocket webSocket, String text) {
       try {
-        handleProxyMessage(new JSONObject(message.string()));
-      } catch (JSONException e) {
-        throw new IOException(e);
-      } finally {
-        message.close();
+        handleProxyMessage(new JSONObject(text));
+      } catch (Exception e) {
+        FLog.w(TAG, "onMessage Exception", e);
       }
     }
 
     @Override
-    public void onPong(Buffer payload) {
-    }
-
-    @Override
-    public void onClose(int code, String reason) {
+    public void onClosed(WebSocket webSocket, int code, String reason) {
       mWebSocket = null;
       closeAllConnections();
       if (!mClosed) {
@@ -233,14 +224,13 @@ public class InspectorPackagerConnection {
         throw new IllegalStateException("Can't connect closed client");
       }
       OkHttpClient httpClient = new OkHttpClient.Builder()
-          .connectTimeout(10, TimeUnit.SECONDS)
-          .writeTimeout(10, TimeUnit.SECONDS)
-          .readTimeout(0, TimeUnit.MINUTES) // Disable timeouts for read
-          .build();
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .writeTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(0, TimeUnit.MINUTES) // Disable timeouts for read
+        .build();
 
       Request request = new Request.Builder().url(mUrl).build();
-      WebSocketCall call = WebSocketCall.create(httpClient, request);
-      call.enqueue(this);
+      httpClient.newWebSocket(request, this);
     }
 
     private void reconnect() {
@@ -252,26 +242,22 @@ public class InspectorPackagerConnection {
         mSuppressConnectionErrors = true;
       }
       mHandler.postDelayed(
-          new Runnable() {
-            @Override
-            public void run() {
-              // check that we haven't been closed in the meantime
-              if (!mClosed) {
-                connect();
-              }
+        new Runnable() {
+          @Override
+          public void run() {
+            // check that we haven't been closed in the meantime
+            if (!mClosed) {
+              connect();
             }
-          },
-          RECONNECT_DELAY_MS);
+          }
+        },
+        RECONNECT_DELAY_MS);
     }
 
     public void close() {
       mClosed = true;
       if (mWebSocket != null) {
-        try {
-          mWebSocket.close(1000, "End of session");
-        } catch (IOException e) {
-          // swallow, no need to handle it here
-        }
+        mWebSocket.close(1000, "End of session");
         mWebSocket = null;
       }
     }
@@ -281,7 +267,7 @@ public class InspectorPackagerConnection {
         return;
       }
 
-      mWebSocket.sendMessage(RequestBody.create(WebSocket.TEXT, object.toString()));
+      mWebSocket.send(object.toString());
     }
 
     private void abort(String message, Throwable cause) {
@@ -292,11 +278,7 @@ public class InspectorPackagerConnection {
 
     private void closeWebSocketQuietly() {
       if (mWebSocket != null) {
-        try {
-          mWebSocket.close(1000, "End of session");
-        } catch (IOException e) {
-          // swallow, no need to handle it here
-        }
+        mWebSocket.close(1000, "End of session");
         mWebSocket = null;
       }
     }
